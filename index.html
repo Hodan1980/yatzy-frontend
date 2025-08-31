@@ -107,11 +107,17 @@
             width: 100%;
             max-width: 200px;
             transition: border-color 0.3s;
+            text-transform: uppercase;
         }
 
         .input-group input:focus {
             outline: none;
             border-color: #667eea;
+        }
+
+        .input-group input#hostPlayerName,
+        .input-group input#joinPlayerName {
+            text-transform: none;
         }
 
         .btn {
@@ -165,6 +171,7 @@
             border-radius: 10px;
             padding: 20px;
             margin: 20px 0;
+            display: none;
         }
 
         .room-code {
@@ -196,6 +203,7 @@
             padding: 15px;
             margin: 15px 0;
             text-align: left;
+            display: none;
         }
 
         .players-list h4 {
@@ -448,6 +456,7 @@
             color: white;
             border-radius: 10px;
             margin: 20px 0;
+            display: none;
         }
 
         .winner {
@@ -479,21 +488,13 @@
             margin: 15px 0;
             border: 1px solid #ffcdd2;
             animation: shake 0.5s ease-in-out;
+            display: none;
         }
 
         @keyframes shake {
             0%, 100% { transform: translateX(0); }
             25% { transform: translateX(-5px); }
             75% { transform: translateX(5px); }
-        }
-
-        .success-message {
-            background: #e8f5e8;
-            color: #2e7d32;
-            padding: 15px;
-            border-radius: 8px;
-            margin: 15px 0;
-            border: 1px solid #c8e6c9;
         }
 
         .notification {
@@ -579,7 +580,7 @@
                     <div class="input-group">
                         <input type="text" id="hostPlayerName" placeholder="Your Name" value="">
                     </div>
-                    <button class="btn" id="hostBtn" onclick="hostGame()">Create Room</button>
+                    <button class="btn" id="hostBtn">Create Room</button>
                 </div>
                 
                 <div class="option-card">
@@ -587,18 +588,18 @@
                     <p>Enter a room code to join an existing game</p>
                     <div class="input-group">
                         <input type="text" id="joinPlayerName" placeholder="Your Name" value="">
-                        <input type="text" id="roomCode" placeholder="Room Code" maxlength="6" style="text-transform: uppercase;">
+                        <input type="text" id="roomCode" placeholder="Room Code" maxlength="6">
                     </div>
-                    <button class="btn btn-secondary" id="joinBtn" onclick="joinGame()">Join Room</button>
+                    <button class="btn btn-secondary" id="joinBtn">Join Room</button>
                 </div>
             </div>
             
-            <div id="connectionStatus" class="connection-status" style="display: none;">
+            <div id="connectionStatus" class="connection-status">
                 <h3>Connection Status</h3>
                 <div id="statusContent"></div>
-                <div id="playersList" class="players-list" style="display: none;"></div>
-                <div id="errorMessage" class="error-message" style="display: none;"></div>
-                <button id="startGameBtn" class="btn" onclick="startMultiplayerGame()" style="display: none;">Start Game</button>
+                <div id="playersList" class="players-list"></div>
+                <div id="errorMessage" class="error-message"></div>
+                <button id="startGameBtn" class="btn" style="display: none;">Start Game</button>
             </div>
         </div>
 
@@ -611,15 +612,15 @@
                     <span id="rollsLeft">Rolls left: 3</span>
                     <span id="gameInstructions"></span>
                 </div>
-                <button id="rollBtn" class="btn" onclick="rollDice()">Roll Dice</button>
+                <button id="rollBtn" class="btn">Roll Dice</button>
             </div>
 
             <div id="scoreboard" class="scoreboard"></div>
             
-            <div id="gameOver" class="game-over" style="display: none;">
+            <div id="gameOver" class="game-over">
                 <div class="winner" id="winner"></div>
                 <div class="final-scores" id="finalScores"></div>
-                <button class="btn" onclick="resetGame()">New Game</button>
+                <button class="btn" id="newGameBtn">New Game</button>
             </div>
         </div>
     </div>
@@ -631,10 +632,49 @@
     <script src="https://cdnjs.cloudflare.com/ajax/libs/socket.io/4.7.5/socket.io.js"></script>
     
     <script>
+        // Global game instance
+        let game;
+
+        // Global functions - Define these FIRST, before the class
+        function hostGame() {
+            if (game) game.hostGame();
+        }
+
+        function joinGame() {
+            if (game) game.joinGame();
+        }
+
+        function startMultiplayerGame() {
+            if (game) game.startMultiplayerGame();
+        }
+
+        function rollDice() {
+            if (game) game.rollDice();
+        }
+
+        function resetGame() {
+            if (game) game.resetGame();
+        }
+
+        function copyToClipboard(text) {
+            navigator.clipboard.writeText(text).then(() => {
+                if (game) game.showNotification('Room code copied to clipboard!', 'success');
+            }).catch(() => {
+                // Fallback for older browsers
+                const textArea = document.createElement('textarea');
+                textArea.value = text;
+                document.body.appendChild(textArea);
+                textArea.select();
+                document.execCommand('copy');
+                document.body.removeChild(textArea);
+                if (game) game.showNotification('Room code copied!', 'success');
+            });
+        }
+
         class RealTimeYatzy {
             constructor() {
-                // Configuration - REPLACE WITH YOUR ACTUAL RAILWAY URL
-                this.serverUrl = 'https://yatzy-backend-production.up.railway.app'; // UPDATE THIS LINE WITH YOUR RAILWAY URL
+                // Configuration - REPLACE THIS WITH YOUR ACTUAL RAILWAY URL
+                this.serverUrl = 'https://yatzy-backend-production.up.railway.app';
                 
                 // Game state
                 this.socket = null;
@@ -818,6 +858,13 @@
             }
 
             setupEventListeners() {
+                // Button event listeners
+                document.getElementById('hostBtn').addEventListener('click', () => this.hostGame());
+                document.getElementById('joinBtn').addEventListener('click', () => this.joinGame());
+                document.getElementById('startGameBtn').addEventListener('click', () => this.startMultiplayerGame());
+                document.getElementById('rollBtn').addEventListener('click', () => this.rollDice());
+                document.getElementById('newGameBtn').addEventListener('click', () => this.resetGame());
+
                 // Enter key support
                 document.addEventListener('keypress', (e) => {
                     if (e.key === 'Enter') {
@@ -931,3 +978,371 @@
                 document.getElementById('statusContent').innerHTML = `
                     <h4>Joined Room!</h4>
                     <p>Waiting for host to start the game...</p>
+                `;
+            }
+
+            enableHostControls() {
+                document.getElementById('startGameBtn').style.display = 'inline-block';
+            }
+
+            updatePlayersList() {
+                const playersListDiv = document.getElementById('playersList');
+                playersListDiv.style.display = 'block';
+                
+                let html = '<h4>Players in Room:</h4>';
+                this.players.forEach(player => {
+                    let statusClass = 'status-connected';
+                    let statusText = 'PLAYER';
+                    
+                    if (player.isHost) {
+                        statusClass = 'status-host';
+                        statusText = 'HOST';
+                    } else if (player.id === this.playerId) {
+                        statusClass = 'status-you';
+                        statusText = 'YOU';
+                    }
+                    
+                    html += `
+                        <div class="player-item ${!player.connected ? 'disconnected' : ''}">
+                            <span>${player.name} ${!player.connected ? '(disconnected)' : ''}</span>
+                            <span class="player-status ${statusClass}">
+                                ${statusText}
+                            </span>
+                        </div>
+                    `;
+                });
+                
+                playersListDiv.innerHTML = html;
+                
+                // Show start button only for host with 2+ players
+                if (this.isHost) {
+                    const startBtn = document.getElementById('startGameBtn');
+                    startBtn.style.display = this.players.length >= 2 ? 'inline-block' : 'none';
+                }
+            }
+
+            startMultiplayerGame() {
+                if (this.players.length < 2) {
+                    this.showError('Need at least 2 players to start');
+                    return;
+                }
+
+                this.socket.emit('start-game', { roomCode: this.roomCode });
+            }
+
+            startGame(gameState) {
+                this.gameState = gameState;
+                this.players = gameState.players;
+                this.showGameArea();
+                this.updateGameDisplay();
+            }
+
+            showGameArea() {
+                document.getElementById('connectionSetup').style.display = 'none';
+                document.getElementById('gameArea').style.display = 'block';
+            }
+
+            rollDice() {
+                if (!this.isMyTurn || this.gameState.rollsLeft <= 0) {
+                    return;
+                }
+
+                this.socket.emit('roll-dice', { roomCode: this.roomCode });
+                
+                // Disable roll button temporarily
+                const rollBtn = document.getElementById('rollBtn');
+                rollBtn.disabled = true;
+                setTimeout(() => rollBtn.disabled = false, 1000);
+            }
+
+            toggleHold(index) {
+                if (!this.isMyTurn || this.gameState.rollsLeft === 3) {
+                    return;
+                }
+
+                this.socket.emit('toggle-hold', { 
+                    roomCode: this.roomCode, 
+                    diceIndex: index 
+                });
+            }
+
+            scoreCategory(category) {
+                if (!this.isMyTurn || this.gameState.rollsLeft === 3) {
+                    return;
+                }
+
+                this.socket.emit('score-category', { 
+                    roomCode: this.roomCode, 
+                    category 
+                });
+            }
+
+            calculateScore(category, dice) {
+                const counts = [0, 0, 0, 0, 0, 0, 0];
+                dice.forEach(die => counts[die]++);
+                
+                switch (category) {
+                    case 'ones': case 'twos': case 'threes': case 'fours': case 'fives': case 'sixes':
+                        const num = this.categories[category].number;
+                        return counts[num] * num;
+                    
+                    case 'threeOfKind':
+                        return counts.some(count => count >= 3) ? dice.reduce((a, b) => a + b, 0) : 0;
+                    
+                    case 'fourOfKind':
+                        return counts.some(count => count >= 4) ? dice.reduce((a, b) => a + b, 0) : 0;
+                    
+                    case 'fullHouse':
+                        const hasThree = counts.some(count => count === 3);
+                        const hasTwo = counts.some(count => count === 2);
+                        return (hasThree && hasTwo) ? 25 : 0;
+                    
+                    case 'smallStraight':
+                        const smallStraights = [[1,2,3,4], [2,3,4,5], [3,4,5,6]];
+                        const diceSet = new Set(dice);
+                        return smallStraights.some(straight => 
+                            straight.every(num => diceSet.has(num))
+                        ) ? 30 : 0;
+                    
+                    case 'largeStraight':
+                        const largeStraights = [[1,2,3,4,5], [2,3,4,5,6]];
+                        const sortedDice = [...dice].sort((a, b) => a - b);
+                        return largeStraights.some(straight => 
+                            straight.every((num, idx) => sortedDice[idx] === num)
+                        ) ? 40 : 0;
+                    
+                    case 'yatzy':
+                        return counts.some(count => count === 5) ? 50 : 0;
+                    
+                    case 'chance':
+                        return dice.reduce((a, b) => a + b, 0);
+                    
+                    default:
+                        return 0;
+                }
+            }
+
+            updateGameDisplay() {
+                this.isMyTurn = this.players[this.gameState.currentPlayerIndex]?.id === this.playerId;
+                
+                // Update current player display
+                const currentPlayer = this.players[this.gameState.currentPlayerIndex];
+                const currentPlayerEl = document.getElementById('currentPlayer');
+                currentPlayerEl.innerHTML = `${currentPlayer?.name}'s Turn ${this.isMyTurn ? '(Your Turn!)' : ''}`;
+                currentPlayerEl.className = this.isMyTurn ? 'current-player your-turn' : 'current-player';
+                
+                // Update dice
+                this.updateDiceDisplay();
+                
+                // Update rolls left
+                document.getElementById('rollsLeft').textContent = `Rolls left: ${this.gameState.rollsLeft}`;
+                
+                // Update game instructions
+                const instructionsEl = document.getElementById('gameInstructions');
+                if (this.isMyTurn) {
+                    if (this.gameState.rollsLeft === 3) {
+                        instructionsEl.textContent = 'Roll the dice to start your turn';
+                    } else if (this.gameState.rollsLeft > 0) {
+                        instructionsEl.textContent = 'Hold dice and roll again, or choose a category to score';
+                    } else {
+                        instructionsEl.textContent = 'Choose a category to score your dice';
+                    }
+                } else {
+                    instructionsEl.textContent = `Waiting for ${currentPlayer?.name} to play...`;
+                }
+                
+                // Update roll button
+                const rollBtn = document.getElementById('rollBtn');
+                rollBtn.disabled = !this.isMyTurn || this.gameState.rollsLeft <= 0;
+                rollBtn.textContent = this.isMyTurn ? 'Roll Dice' : `${currentPlayer?.name} is playing...`;
+                
+                // Update scoreboard
+                this.updateScoreboard();
+            }
+
+            updateDiceDisplay() {
+                const diceContainer = document.getElementById('diceContainer');
+                diceContainer.innerHTML = '';
+                
+                this.gameState.dice.forEach((value, index) => {
+                    const die = document.createElement('div');
+                    die.className = `die ${this.gameState.heldDice[index] ? 'held' : ''} ${!this.isMyTurn ? 'disabled' : ''}`;
+                    die.textContent = value;
+                    die.title = this.isMyTurn ? (this.gameState.heldDice[index] ? 'Click to unhold' : 'Click to hold') : '';
+                    
+                    if (this.isMyTurn && this.gameState.rollsLeft < 3) {
+                        die.onclick = () => this.toggleHold(index);
+                    }
+                    
+                    diceContainer.appendChild(die);
+                });
+            }
+
+            animateDiceRoll() {
+                const dice = document.querySelectorAll('.die');
+                dice.forEach(die => {
+                    if (!die.classList.contains('held')) {
+                        die.classList.add('rolling');
+                        setTimeout(() => die.classList.remove('rolling'), 500);
+                    }
+                });
+            }
+
+            updateScoreboard() {
+                const scoreboard = document.getElementById('scoreboard');
+                scoreboard.innerHTML = '';
+                
+                this.players.forEach((player, playerIndex) => {
+                    const playerDiv = document.createElement('div');
+                    let playerClasses = 'player-score';
+                    
+                    if (playerIndex === this.gameState.currentPlayerIndex) {
+                        playerClasses += ' current-turn';
+                    }
+                    if (player.id === this.playerId) {
+                        playerClasses += ' your-score';
+                    }
+                    if (!player.connected) {
+                        playerClasses += ' disconnected';
+                    }
+                    
+                    playerDiv.className = playerClasses;
+                    
+                    let html = `<h3>${player.name} (${player.totalScore} points)${!player.connected ? ' - OFFLINE' : ''}</h3>`;
+                    html += '<div class="score-categories">';
+                    
+                    // Upper section
+                    html += '<div class="section-header">Upper Section</div>';
+                    ['ones', 'twos', 'threes', 'fours', 'fives', 'sixes'].forEach(cat => {
+                        const isAvailable = player.scores[cat] === null && 
+                                          playerIndex === this.gameState.currentPlayerIndex && 
+                                          this.isMyTurn && 
+                                          this.gameState.rollsLeft < 3;
+                        const score = player.scores[cat] !== null ? player.scores[cat] : '-';
+                        const potentialScore = isAvailable ? this.calculateScore(cat, this.gameState.dice) : '';
+                        
+                        html += `
+                            <div class="category-name ${isAvailable ? 'available' : ''}" 
+                                 ${isAvailable ? `onclick="game.scoreCategory('${cat}')" title="Click to score ${potentialScore} points"` : ''}>
+                                ${this.categories[cat].name} ${potentialScore ? `(${potentialScore})` : ''}
+                            </div>
+                            <div class="category-score">${score}</div>
+                        `;
+                    });
+                    
+                    // Lower section
+                    html += '<div class="section-header">Lower Section</div>';
+                    ['threeOfKind', 'fourOfKind', 'fullHouse', 'smallStraight', 'largeStraight', 'yatzy', 'chance'].forEach(cat => {
+                        const isAvailable = player.scores[cat] === null && 
+                                          playerIndex === this.gameState.currentPlayerIndex && 
+                                          this.isMyTurn && 
+                                          this.gameState.rollsLeft < 3;
+                        const score = player.scores[cat] !== null ? player.scores[cat] : '-';
+                        const potentialScore = isAvailable ? this.calculateScore(cat, this.gameState.dice) : '';
+                        
+                        html += `
+                            <div class="category-name ${isAvailable ? 'available' : ''}" 
+                                 ${isAvailable ? `onclick="game.scoreCategory('${cat}')" title="Click to score ${potentialScore} points"` : ''}>
+                                ${this.categories[cat].name} ${potentialScore ? `(${potentialScore})` : ''}
+                            </div>
+                            <div class="category-score">${score}</div>
+                        `;
+                    });
+                    
+                    html += `<div class="total-row">Total: ${player.totalScore}</div>`;
+                    html += '</div>';
+                    
+                    playerDiv.innerHTML = html;
+                    scoreboard.appendChild(playerDiv);
+                });
+            }
+
+            endGame(winner, finalScores) {
+                document.getElementById('winner').textContent = `🎉 ${winner.name} Wins with ${winner.totalScore} points! 🎉`;
+                
+                let scoresHtml = '';
+                finalScores.forEach((player, index) => {
+                    scoresHtml += `
+                        <div class="score-item">
+                            <span>${index + 1}. ${player.name}</span>
+                            <span>${player.totalScore} points</span>
+                        </div>
+                    `;
+                });
+                document.getElementById('finalScores').innerHTML = scoresHtml;
+                
+                document.getElementById('gameOver').style.display = 'block';
+                this.showNotification('Game completed!', 'success');
+            }
+
+            resetGame() {
+                this.playerId = null;
+                this.roomCode = null;
+                this.isHost = false;
+                this.isMyTurn = false;
+                this.players = [];
+                this.gameState = {
+                    gameStarted: false,
+                    currentPlayerIndex: 0,
+                    dice: [1, 1, 1, 1, 1],
+                    heldDice: [false, false, false, false, false],
+                    rollsLeft: 3
+                };
+                
+                document.getElementById('connectionSetup').style.display = 'block';
+                document.getElementById('gameArea').style.display = 'none';
+                document.getElementById('gameOver').style.display = 'none';
+                document.getElementById('connectionStatus').style.display = 'none';
+                document.getElementById('startGameBtn').style.display = 'none';
+                
+                // Reset form buttons
+                const hostBtn = document.getElementById('hostBtn');
+                const joinBtn = document.getElementById('joinBtn');
+                hostBtn.disabled = false;
+                hostBtn.classList.remove('btn-loading');
+                joinBtn.disabled = false;
+                joinBtn.classList.remove('btn-loading');
+                
+                // Clear form inputs
+                document.getElementById('hostPlayerName').value = '';
+                document.getElementById('joinPlayerName').value = '';
+                document.getElementById('roomCode').value = '';
+            }
+
+            showError(message) {
+                const errorDiv = document.getElementById('errorMessage');
+                errorDiv.textContent = message;
+                errorDiv.style.display = 'block';
+                setTimeout(() => {
+                    errorDiv.style.display = 'none';
+                }, 5000);
+                
+                // Reset loading buttons
+                const hostBtn = document.getElementById('hostBtn');
+                const joinBtn = document.getElementById('joinBtn');
+                hostBtn.disabled = false;
+                hostBtn.classList.remove('btn-loading');
+                joinBtn.disabled = false;
+                joinBtn.classList.remove('btn-loading');
+            }
+
+            showNotification(message, type = 'info') {
+                const notification = document.getElementById('notification');
+                notification.textContent = message;
+                notification.className = `notification ${type} show`;
+                
+                setTimeout(() => {
+                    notification.classList.remove('show');
+                }, 3000);
+            }
+        }
+
+        // Initialize game when page loads
+        document.addEventListener('DOMContentLoaded', function() {
+            console.log('Initializing Yatzy game...');
+            game = new RealTimeYatzy();
+            console.log('Game initialized successfully!');
+        });
+    </script>
+</body>
+</html>
